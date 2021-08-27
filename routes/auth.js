@@ -1,12 +1,65 @@
 const express=require("express");
+const app=express();
 const router=express.Router();
 require("../src/db/connection");
 const bcrptjs=require("bcryptjs");
+const admin_Collection=require("../src/db/admin")
 const user_Collection=require("../src/db/user")
 const settings_Collection=require("../src/db/settings")
 const attendance_log_Collection=require("../src/db/attendances_log")
 const attendance_Record=require("../src/db/attendances_record");
+const jwt_auth=require("./jwt auth");
+const cookieParser=require('cookie-parser');
+app.use(cookieParser())
 const ZKLib = require('node-zklib')
+router.post("/admin",async (req,res)=>{
+    try
+    {
+        const data=new admin_Collection(req.body)
+     //   const token=data.generateAuthToken();
+        //middleware works here
+        console.log(data)
+       await data.save();
+        res.status(201).json({message:"Register User"})
+    }
+    catch(e)
+    {
+        console.log("admin error")
+    }
+})
+router.post("/login",async (req,res)=>{
+   try
+   {
+    const data=await admin_Collection.findOne({username:req.body.username})
+    if(data)
+    {
+        if(await bcrptjs.compare(req.body.pswd,data.pswd))
+        {
+            data.pswd=req.body.pswd;
+            let token=await data.generateAuthToken();
+            token=(!token)?res.status(201).json({message:false}):token;
+            res.cookie("jwt_token",token,{httpOnly:false})
+            res.status(201).json({message:true})
+        }
+       else
+       res.status(201).json({message:false})
+    }
+    else
+    res.status(201).json({message:false})
+   }
+   catch(e)
+   {
+    res.status(201).json({message:false})
+   }
+})
+router.get("/loginCheck",jwt_auth,async (req,res)=>{
+    console.log("hello logout")
+    res.status(201).json({message:true})
+})
+router.get("/logout",async (req,res)=>{
+    res.clearCookie("jwt_token");
+    res.status(201).json({message:true})
+})
 router.post("/user",async (req,res)=>{
        user_Collection.findOneAndUpdate({userId:req.body.id},{ salary:parseInt(req.body.salary),shift:req.body.shift})
        .then(()=>{res.status(201).json({message:"user updated"})})
@@ -65,7 +118,7 @@ router.get("/settings",async (req,res)=>{
         res.status(500).json({message:'error!!'})
     }    
 })
-router.get("/dashboard/:date1/max/:date2",async (req,res)=>{
+router.get("/dashboard/:date1/max/:date2",jwt_auth,async (req,res)=>{
     try
     {
         let count=await attendance_Record.find({date: {$gte:new Date(req.params.date1),$lte:new Date(req.params.date2)}}).countDocuments();

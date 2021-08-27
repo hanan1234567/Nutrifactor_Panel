@@ -4,8 +4,7 @@
   "private": true,
   "main": "public/electron.js",
   "scripts": {
-    "start": "node src/index.js"
-   
+    "start": "nodemon src/index.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
